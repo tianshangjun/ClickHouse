@@ -34,97 +34,19 @@ struct StaticVisitor
 
 /// F is template parameter, to allow universal reference for field, that is useful for const and non-const values.
 template <typename Visitor, typename F>
-typename std::decay_t<Visitor>::ResultType applyVisitor(Visitor && visitor, F && field)
+auto applyVisitor(Visitor && visitor, F && field)
 {
-    switch (field.getType())
-    {
-        case Field::Types::Null: return visitor(field.template get<Null>());
-        case Field::Types::UInt64: return visitor(field.template get<UInt64>());
-        case Field::Types::UInt128: return visitor(field.template get<UInt128>());
-        case Field::Types::Int64: return visitor(field.template get<Int64>());
-        case Field::Types::Float64: return visitor(field.template get<Float64>());
-        case Field::Types::String: return visitor(field.template get<String>());
-        case Field::Types::Array: return visitor(field.template get<Array>());
-        case Field::Types::Tuple: return visitor(field.template get<Tuple>());
-        case Field::Types::Decimal32: return visitor(field.template get<DecimalField<Decimal32>>());
-        case Field::Types::Decimal64: return visitor(field.template get<DecimalField<Decimal64>>());
-        case Field::Types::Decimal128: return visitor(field.template get<DecimalField<Decimal128>>());
-        case Field::Types::AggregateFunctionState: return visitor(field.template get<AggregateFunctionStateData>());
-
-        default:
-            throw Exception("Bad type of Field", ErrorCodes::BAD_TYPE_OF_FIELD);
-    }
-}
-
-
-template <typename Visitor, typename F1, typename F2>
-static typename std::decay_t<Visitor>::ResultType applyBinaryVisitorImpl(Visitor && visitor, F1 && field1, F2 && field2)
-{
-    switch (field2.getType())
-    {
-        case Field::Types::Null:    return visitor(field1, field2.template get<Null>());
-        case Field::Types::UInt64:  return visitor(field1, field2.template get<UInt64>());
-        case Field::Types::UInt128: return visitor(field1, field2.template get<UInt128>());
-        case Field::Types::Int64:   return visitor(field1, field2.template get<Int64>());
-        case Field::Types::Float64: return visitor(field1, field2.template get<Float64>());
-        case Field::Types::String:  return visitor(field1, field2.template get<String>());
-        case Field::Types::Array:   return visitor(field1, field2.template get<Array>());
-        case Field::Types::Tuple:   return visitor(field1, field2.template get<Tuple>());
-        case Field::Types::Decimal32:  return visitor(field1, field2.template get<DecimalField<Decimal32>>());
-        case Field::Types::Decimal64:  return visitor(field1, field2.template get<DecimalField<Decimal64>>());
-        case Field::Types::Decimal128: return visitor(field1, field2.template get<DecimalField<Decimal128>>());
-        case Field::Types::AggregateFunctionState: return visitor(field1, field2.template get<AggregateFunctionStateData>());
-
-        default:
-            throw Exception("Bad type of Field", ErrorCodes::BAD_TYPE_OF_FIELD);
-    }
+    return Field::dispatch(visitor, field);
 }
 
 template <typename Visitor, typename F1, typename F2>
-typename std::decay_t<Visitor>::ResultType applyVisitor(Visitor && visitor, F1 && field1, F2 && field2)
+auto applyVisitor(Visitor && visitor, F1 && field1, F2 && field2)
 {
-    switch (field1.getType())
-    {
-        case Field::Types::Null:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<Null>(), std::forward<F2>(field2));
-        case Field::Types::UInt64:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<UInt64>(), std::forward<F2>(field2));
-        case Field::Types::UInt128:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<UInt128>(), std::forward<F2>(field2));
-        case Field::Types::Int64:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<Int64>(), std::forward<F2>(field2));
-        case Field::Types::Float64:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<Float64>(), std::forward<F2>(field2));
-        case Field::Types::String:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<String>(), std::forward<F2>(field2));
-        case Field::Types::Array:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<Array>(), std::forward<F2>(field2));
-        case Field::Types::Tuple:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<Tuple>(), std::forward<F2>(field2));
-        case Field::Types::Decimal32:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<DecimalField<Decimal32>>(), std::forward<F2>(field2));
-        case Field::Types::Decimal64:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<DecimalField<Decimal64>>(), std::forward<F2>(field2));
-        case Field::Types::Decimal128:
-            return applyBinaryVisitorImpl(
-                std::forward<Visitor>(visitor), field1.template get<DecimalField<Decimal128>>(), std::forward<F2>(field2));
-        case Field::Types::AggregateFunctionState:
-            return applyBinaryVisitorImpl(
-                    std::forward<Visitor>(visitor), field1.template get<AggregateFunctionStateData>(), std::forward<F2>(field2));
-
-        default:
-            throw Exception("Bad type of Field", ErrorCodes::BAD_TYPE_OF_FIELD);
-    }
+    return Field::dispatch([&](auto & field1_value) {
+        return Field::dispatch([&](auto & field2_value) {
+            return visitor(field1_value, field2_value);
+        }, field2);
+    }, field1 );
 }
 
 
@@ -491,5 +413,49 @@ public:
         return x.getValue() != 0;
     }
 };
+
+/**
+  * castField() implementation details follow.
+  */
+template<typename DestType, typename SrcType>
+DestType staticCastFieldValue(const SrcType & src)
+{
+    auto dest = static_cast<DestType>(src);
+    if (!accurate::equalsOp(dest, src))
+    {
+        throw Exception("Cannot cast Field value '" + applyVisitor(FieldVisitorToString(), Field(src))
+                        + "' of type '" + demangle(typeid(SrcType).name())
+                        + "' to '" + demangle(typeid(DestType).name()) + "'",
+                        ErrorCodes::VALUE_IS_OUT_OF_RANGE_OF_DATA_TYPE);
+    }
+    return dest;
+}
+
+template<typename DestType, typename SrcType>
+DestType castFieldValue(const SrcType & src)
+{
+    if constexpr (std::is_convertible_v<DestType, SrcType>)
+    {
+        return staticCastFieldValue<DestType, SrcType>(src);
+    }
+    else
+    {
+        throw Exception("Cannot cast Field value of type '" + demangle(typeid(SrcType).name())
+                        + "' to '" + demangle(typeid(DestType).name()) + "'",
+                        ErrorCodes::LOGICAL_ERROR);
+    }
+}
+
+/**
+  * castField(): support static_casting Field to a specified data type, with
+  * precision check.
+  */
+template<typename DestType>
+DestType castField(const Field & field)
+{
+    return Field::dispatch(
+        [](auto & src_value){ return castFieldValue<DestType>(src_value); },
+        field);
+}
 
 }

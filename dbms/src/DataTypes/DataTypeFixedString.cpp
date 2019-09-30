@@ -285,10 +285,8 @@ static DataTypePtr create(const ASTPtr & arguments)
         throw Exception("FixedString data type family must have exactly one argument - size in bytes", ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH);
 
     const auto * argument = arguments->children[0]->as<ASTLiteral>();
-    if (!argument || argument->value.getType() != Field::Types::UInt64 || argument->value.get<UInt64>() == 0)
-        throw Exception("FixedString data type family must have a number (positive integer) as its argument", ErrorCodes::UNEXPECTED_AST_STRUCTURE);
 
-    return std::make_shared<DataTypeFixedString>(argument->value.get<UInt64>());
+    return std::make_shared<DataTypeFixedString>(castField<UInt64>(argument->value));
 }
 
 

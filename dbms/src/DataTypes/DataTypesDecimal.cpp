@@ -206,12 +206,12 @@ MutableColumnPtr DataTypeDecimal<T>::createColumn() const
 }
 
 
-//
-
 DataTypePtr createDecimal(UInt64 precision_value, UInt64 scale_value)
 {
     if (precision_value < minDecimalPrecision() || precision_value > maxDecimalPrecision<Decimal128>())
-        throw Exception("Wrong precision", ErrorCodes::ARGUMENT_OUT_OF_BOUND);
+        throw Exception("Decimal precision must be between " + toString(minDecimalPrecision())
+                        + " and " + toString(maxDecimalPrecision<Decimal128>())
+                        , ErrorCodes::ARGUMENT_OUT_OF_BOUND);
 
     if (static_cast<UInt64>(scale_value) > precision_value)
         throw Exception("Negative scales and scales larger than precision are not supported", ErrorCodes::ARGUMENT_OUT_OF_BOUND);
@@ -225,39 +225,35 @@ DataTypePtr createDecimal(UInt64 precision_value, UInt64 scale_value)
 
 static DataTypePtr create(const ASTPtr & arguments)
 {
-    if (!arguments || arguments->children.size() != 2)
+    const ASTLiteral * precision;
+    const ASTLiteral * scale;
+
+    if (!arguments || arguments->children.size() != 2
+        || !(precision = arguments->children[0]->as<ASTLiteral>())
+        || !(scale = arguments->children[1]->as<ASTLiteral>()))
+    {
         throw Exception("Decimal data type family must have exactly two arguments: precision and scale",
                         ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH);
+    }
 
-    const auto * precision = arguments->children[0]->as<ASTLiteral>();
-    const auto * scale = arguments->children[1]->as<ASTLiteral>();
-
-    if (!precision || precision->value.getType() != Field::Types::UInt64 ||
-        !scale || !(scale->value.getType() == Field::Types::Int64 || scale->value.getType() == Field::Types::UInt64))
-        throw Exception("Decimal data type family must have a two numbers as its arguments", ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
-
-    UInt64 precision_value = precision->value.get<UInt64>();
-    UInt64 scale_value = scale->value.get<UInt64>();
-
-    return createDecimal(precision_value, scale_value);
+    return createDecimal(castField<UInt64>(precision->value),
+                         castField<UInt64>(scale->value));
 }
 
 template <typename T>
 static DataTypePtr createExact(const ASTPtr & arguments)
 {
-    if (!arguments || arguments->children.size() != 1)
-        throw Exception("Decimal data type family must have exactly two arguments: precision and scale",
+    const ASTLiteral * scale;
+
+    if (!arguments || arguments->children.size() != 1
+        || !(scale = arguments->children[0]->as<ASTLiteral>()))
+    {
+        throw Exception("Decimal data type with specified precision must have exactly one argument: scale",
                         ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH);
+    }
 
-    const auto * scale_arg = arguments->children[0]->as<ASTLiteral>();
-
-    if (!scale_arg || !(scale_arg->value.getType() == Field::Types::Int64 || scale_arg->value.getType() == Field::Types::UInt64))
-        throw Exception("Decimal data type family must have a two numbers as its arguments", ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT);
-
-    UInt64 precision = maxDecimalPrecision<T>();
-    UInt64 scale = scale_arg->value.get<UInt64>();
-
-    return createDecimal(precision, scale);
+    return createDecimal(maxDecimalPrecision<T>(),
+                         castField<UInt64>(scale->value));
 }
 
 void registerDataTypeDecimal(DataTypeFactory & factory)

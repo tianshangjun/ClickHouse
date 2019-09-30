@@ -390,12 +390,8 @@ static DataTypePtr createExact(const ASTPtr & arguments)
             throw Exception("Elements of Enum data type must be of form: 'name' = number, where name is string literal and number is an integer",
                 ErrorCodes::UNEXPECTED_AST_STRUCTURE);
 
-        const String & field_name = name_literal->value.get<String>();
-        const auto value = value_literal->value.get<NearestFieldType<FieldType>>();
-
-        if (value > std::numeric_limits<FieldType>::max() || value < std::numeric_limits<FieldType>::min())
-            throw Exception{"Value " + toString(value) + " for element '" + field_name + "' exceeds range of " + EnumName<FieldType>::value,
-                ErrorCodes::ARGUMENT_OUT_OF_BOUND};
+        const String & field_name = name_literal->value.safeGet<String>();
+        const auto value = castField<FieldType>(value_literal->value);
 
         values.emplace_back(field_name, value);
     }

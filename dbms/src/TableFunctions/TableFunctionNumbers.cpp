@@ -46,7 +46,9 @@ void registerTableFunctionNumbers(TableFunctionFactory & factory)
 template <bool multithreaded>
 UInt64 TableFunctionNumbers<multithreaded>::evaluateArgument(const Context & context, ASTPtr & argument) const
 {
-    return evaluateConstantExpressionOrIdentifierAsLiteral(argument, context)->as<ASTLiteral &>().value.safeGet<UInt64>();
+    return castField<UInt64>(
+        evaluateConstantExpressionOrIdentifierAsLiteral(argument, context)
+            ->as<ASTLiteral &>().value);
 }
 
 }

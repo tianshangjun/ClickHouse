@@ -41,7 +41,6 @@
 #include <Interpreters/InterpreterSelectWithUnionQuery.h>
 #include <Interpreters/InterpreterSetQuery.h>
 #include <Interpreters/evaluateConstantExpression.h>
-#include <Interpreters/convertFieldToType.h>
 #include <Interpreters/ExpressionAnalyzer.h>
 #include <Interpreters/DatabaseAndTableWithAlias.h>
 #include <Interpreters/JoinToSubqueryTransformVisitor.h>
@@ -806,11 +805,7 @@ static UInt64 getLimitUIntValue(const ASTPtr & node, const Context & context)
     if (!isNativeNumber(type))
         throw Exception("Illegal type " + type->getName() + " of LIMIT expression, must be numeric type", ErrorCodes::INVALID_LIMIT_EXPRESSION);
 
-    Field converted = convertFieldToType(field, DataTypeUInt64());
-    if (converted.isNull())
-        throw Exception("The value " + applyVisitor(FieldVisitorToString(), field) + " of LIMIT expression is not representable as UInt64", ErrorCodes::INVALID_LIMIT_EXPRESSION);
-
-    return converted.safeGet<UInt64>();
+    return castField<UInt64>(field);
 }
 
 

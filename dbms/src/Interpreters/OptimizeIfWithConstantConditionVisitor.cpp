@@ -21,7 +21,7 @@ static bool tryExtractConstValueFromCondition(const ASTPtr & condition, bool & v
         if (literal->value.getType() == Field::Types::Int64 ||
             literal->value.getType() == Field::Types::UInt64)
         {
-            value = literal->value.get<Int64>();
+            value = castField<Int64>(literal->value);
             return true;
         }
     }

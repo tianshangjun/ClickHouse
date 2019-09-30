@@ -25,6 +25,7 @@ namespace ErrorCodes
     extern const int NOT_IMPLEMENTED;
     extern const int LOGICAL_ERROR;
     extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+    extern const int VALUE_IS_OUT_OF_RANGE_OF_DATA_TYPE;
 }
 
 template <typename T>
@@ -314,18 +315,20 @@ public:
     bool isNull() const { return which == Types::Null; }
 
 
-    template <typename T> T & get()
+    template <typename T>
+    auto & get()
     {
-        using TWithoutRef = std::remove_reference_t<T>;
-        TWithoutRef * MAY_ALIAS ptr = reinterpret_cast<TWithoutRef*>(&storage);
+        using ValueType = std::decay_t<T>;
+        assert(TypeToEnum<NearestFieldType<ValueType>>::value == which);
+        ValueType * MAY_ALIAS ptr = reinterpret_cast<ValueType *>(&storage);
         return *ptr;
     }
 
-    template <typename T> const T & get() const
+    template <typename T>
+    const T & get() const
     {
-        using TWithoutRef = std::remove_reference_t<T>;
-        const TWithoutRef * MAY_ALIAS ptr = reinterpret_cast<const TWithoutRef*>(&storage);
-        return *ptr;
+        auto mutable_this = const_cast<std::decay_t<decltype(*this)> *>(this);
+        return mutable_this->get<T>();
     }
 
     template <typename T> bool tryGet(T & result)
@@ -435,9 +438,9 @@ public:
         switch (which)
         {
             case Types::Null:    return true;
-            case Types::UInt64:
-            case Types::Int64:
-            case Types::Float64: return get<UInt64>()  == rhs.get<UInt64>();
+            case Types::UInt64:  return get<UInt64>() == rhs.get<UInt64>();
+            case Types::Int64:   return get<Int64>() == rhs.get<Int64>();
+            case Types::Float64: return get<Float64>()  == rhs.get<Float64>();
             case Types::String:  return get<String>()  == rhs.get<String>();
             case Types::Array:   return get<Array>()   == rhs.get<Array>();
             case Types::Tuple:   return get<Tuple>()   == rhs.get<Tuple>();
@@ -456,6 +459,11 @@ public:
     {
         return !(*this == rhs);
     }
+
+    /// Field is template parameter, to allow universal reference for field,
+    /// that is useful for const and non-const .
+    template <typename F, typename Field>
+    static auto dispatch(F && f, Field && field);
 
 private:
     std::aligned_union_t<DBMS_MIN_FIELD_SIZE - sizeof(Types::Which),
@@ -493,56 +501,11 @@ private:
     }
 
 
-    template <typename F, typename Field>    /// Field template parameter may be const or non-const Field.
-    static void dispatch(F && f, Field & field)
-    {
-        switch (field.which)
-        {
-            case Types::Null:    f(field.template get<Null>());    return;
 
-// gcc 7.3.0
-#if !__clang__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-            case Types::UInt64:  f(field.template get<UInt64>());  return;
-            case Types::UInt128: f(field.template get<UInt128>()); return;
-            case Types::Int64:   f(field.template get<Int64>());   return;
-            case Types::Int128:  f(field.template get<Int128>());  return;
-            case Types::Float64: f(field.template get<Float64>()); return;
-#if !__clang__
-#pragma GCC diagnostic pop
-#endif
-            case Types::String:  f(field.template get<String>());  return;
-            case Types::Array:   f(field.template get<Array>());   return;
-            case Types::Tuple:   f(field.template get<Tuple>());   return;
-            case Types::Decimal32:  f(field.template get<DecimalField<Decimal32>>()); return;
-            case Types::Decimal64:  f(field.template get<DecimalField<Decimal64>>()); return;
-            case Types::Decimal128: f(field.template get<DecimalField<Decimal128>>()); return;
-            case Types::AggregateFunctionState: f(field.template get<AggregateFunctionStateData>()); return;
-        }
-    }
-
-
-    void create(const Field & x)
-    {
-        dispatch([this] (auto & value) { createConcrete(value); }, x);
-    }
-
-    void create(Field && x)
-    {
-        dispatch([this] (auto & value) { createConcrete(std::move(value)); }, x);
-    }
-
-    void assign(const Field & x)
-    {
-        dispatch([this] (auto & value) { assignConcrete(value); }, x);
-    }
-
-    void assign(Field && x)
-    {
-        dispatch([this] (auto & value) { assignConcrete(std::move(value)); }, x);
-    }
+    void create(const Field & x);
+    void create(Field && x);
+    void assign(const Field & x);
+    void assign(Field && x);
 
 
     void create(const char * data, size_t size)
@@ -735,6 +698,29 @@ Field::operator= (T && rhs)
     return *this;
 }
 
+template <typename F, typename FieldRef>
+auto Field::dispatch(F && f, FieldRef && field)
+{
+    switch (field.which)
+    {
+        case Types::Null:    return f(field.template get<Null>());
+        case Types::UInt64:  return f(field.template get<UInt64>());
+        case Types::UInt128: return f(field.template get<UInt128>());
+        case Types::Int64:   return f(field.template get<Int64>());
+        case Types::Float64: return f(field.template get<Float64>());
+        case Types::String:  return f(field.template get<String>());
+        case Types::Array:   return f(field.template get<Array>());
+        case Types::Tuple:   return f(field.template get<Tuple>());
+        case Types::Decimal32:  return f(field.template get<DecimalField<Decimal32>>());
+        case Types::Decimal64:  return f(field.template get<DecimalField<Decimal64>>());
+        case Types::Decimal128: return f(field.template get<DecimalField<Decimal128>>());
+        case Types::AggregateFunctionState: return f(field.template get<AggregateFunctionStateData>());
+        default:
+            assert(false);
+            Null null;
+            return f(null);
+    }
+}
 
 class ReadBuffer;
 class WriteBuffer;
