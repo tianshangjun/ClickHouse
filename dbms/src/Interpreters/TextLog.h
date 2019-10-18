@@ -8,7 +8,7 @@ using Poco::Message;
 
 struct TextLogElement
 {
-    time_t event_time{};
+    UInt32 event_time{};
     UInt32 microseconds;
 
     String thread_name;

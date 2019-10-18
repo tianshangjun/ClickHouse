@@ -22,7 +22,7 @@ namespace DB
 /// A struct which will be inserted as row into query_log table
 struct QueryLogElement
 {
-    enum Type : UInt8 // Make it signed for compatibility with DataTypeEnum8
+    enum Type : Int8 // Make it signed for compatibility with DataTypeEnum8
     {
         QUERY_START = 1,
         QUERY_FINISH = 2,
@@ -34,8 +34,8 @@ struct QueryLogElement
 
     /// Depending on the type of query and type of stage, not all the fields may be filled.
 
-    time_t event_time{};
-    time_t query_start_time{};
+    UInt32 event_time{};
+    UInt32 query_start_time{};
     UInt64 query_duration_ms{};
 
     /// The data fetched from DB to execute the query

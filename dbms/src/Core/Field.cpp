@@ -11,26 +11,6 @@
 namespace DB
 {
 
-void Field::create(const Field & x)
-{
-    dispatch([this] (auto & value) { createConcrete(value); }, x);
-}
-
-void Field::create(Field && x)
-{
-    dispatch([this] (auto & value) { createConcrete(std::move(value)); }, x);
-}
-
-void Field::assign(const Field & x)
-{
-    dispatch([this] (auto & value) { assignConcrete(value); }, x);
-}
-
-void Field::assign(Field && x)
-{
-    dispatch([this] (auto & value) { assignConcrete(std::move(value)); }, x);
-}
-
 void readBinary(Array & x, ReadBuffer & buf)
 {
     size_t size;
