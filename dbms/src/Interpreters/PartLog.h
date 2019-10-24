@@ -8,7 +8,7 @@ namespace DB
 
 struct PartLogElement
 {
-    enum Type
+    enum Type : Int8 // signed for compatibility with DataTypeEnum8
     {
         NEW_PART = 1,
         MERGE_PARTS = 2,

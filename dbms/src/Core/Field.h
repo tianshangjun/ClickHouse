@@ -366,6 +366,16 @@ public:
         return mutable_this->get<T>();
     }
 
+    template <typename T>
+    T & reinterpret();
+
+    template <typename T>
+    const T & reinterpret() const
+    {
+        auto mutable_this = const_cast<std::decay_t<decltype(*this)> *>(this);
+        return mutable_this->reinterpret<T>();
+    }
+
     template <typename T> bool tryGet(T & result)
     {
         const Types::Which requested = TypeToEnum<std::decay_t<T>>::value;
@@ -465,6 +475,8 @@ public:
         return rhs <= *this;
     }
 
+    // More like bitwise equality as opposed to semantic equality:
+    // Null equals Null and NaN equals NaN.
     bool operator== (const Field & rhs) const
     {
         if (which != rhs.which)
@@ -475,7 +487,11 @@ public:
             case Types::Null:    return true;
             case Types::UInt64:  return get<UInt64>() == rhs.get<UInt64>();
             case Types::Int64:   return get<Int64>() == rhs.get<Int64>();
-            case Types::Float64: return get<Float64>()  == rhs.get<Float64>();
+            case Types::Float64:
+            {
+                // Compare as UInt64 so that NaNs compare as equal.
+                return reinterpret<UInt64>()  == rhs.reinterpret<UInt64>();
+            }
             case Types::String:  return get<String>()  == rhs.get<String>();
             case Types::Array:   return get<Array>()   == rhs.get<Array>();
             case Types::Tuple:   return get<Tuple>()   == rhs.get<Tuple>();
@@ -662,6 +678,14 @@ T & Field::get()
 {
     using ValueType = std::decay_t<T>;
     assert(TypeToEnum<NearestFieldType<ValueType>>::value == which);
+    ValueType * MAY_ALIAS ptr = reinterpret_cast<ValueType *>(&storage);
+    return *ptr;
+}
+
+template <typename T>
+T & Field::reinterpret()
+{
+    using ValueType = std::decay_t<T>;
     ValueType * MAY_ALIAS ptr = reinterpret_cast<ValueType *>(&storage);
     return *ptr;
 }
