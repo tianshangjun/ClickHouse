@@ -17,7 +17,7 @@ namespace DB
 
 struct MetricLogElement
 {
-    UInt32 event_time{};
+    UInt32 event_time{}; // DateTime column requires UInt32
     UInt64 milliseconds{};
 
     std::vector<ProfileEvents::Count> profile_events;

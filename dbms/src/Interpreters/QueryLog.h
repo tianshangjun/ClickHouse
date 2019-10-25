@@ -34,8 +34,8 @@ struct QueryLogElement
 
     /// Depending on the type of query and type of stage, not all the fields may be filled.
 
-    UInt32 event_time{};
-    UInt32 query_start_time{};
+    UInt32 event_time{}; // DateTime column requires UInt32
+    UInt32 query_start_time{}; // DateTime column requires UInt32
     UInt64 query_duration_ms{};
 
     /// The data fetched from DB to execute the query

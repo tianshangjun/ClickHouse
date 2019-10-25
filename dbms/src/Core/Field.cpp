@@ -149,7 +149,7 @@ void writeBinary(const Array & x, WriteBuffer & buf)
 
 void writeText(const Array & x, WriteBuffer & buf)
 {
-    DB::String res = Field::dispatch(DB::FieldVisitorToString(), DB::Field(x));
+    DB::String res = applyVisitor(DB::FieldVisitorToString(), DB::Field(x));
     buf.write(res.data(), res.size());
 }
 
