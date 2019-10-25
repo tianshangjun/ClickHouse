@@ -8,14 +8,14 @@ using Poco::Message;
 
 struct TextLogElement
 {
-    UInt32 event_time{};
+    UInt32 event_time{}; // DateTime column requires UInt32
     UInt32 microseconds;
 
     String thread_name;
     UInt32 os_thread_id;
     UInt32 thread_number;
 
-    Message::Priority level = Message::PRIO_TRACE;
+    Int8 level = Message::PRIO_TRACE; // Enum8 column requires Int8
 
     String query_id;
     String logger_name;
