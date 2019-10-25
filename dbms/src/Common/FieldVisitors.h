@@ -16,6 +16,7 @@ namespace ErrorCodes
     extern const int CANNOT_CONVERT_TYPE;
     extern const int BAD_TYPE_OF_FIELD;
     extern const int LOGICAL_ERROR;
+    extern const int TYPE_MISMATCH;
 }
 
 UInt128 stringToUUID(const String &);
@@ -442,7 +443,7 @@ DestType castFieldValue(const SrcType & src)
     {
         throw Exception("Cannot cast Field value of type '" + demangle(typeid(SrcType).name())
                         + "' to '" + demangle(typeid(DestType).name()) + "'",
-                        ErrorCodes::LOGICAL_ERROR);
+                        ErrorCodes::TYPE_MISMATCH);
     }
 }
 
