@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS decimal;
 
-CREATE TABLE IF NOT EXISTS decimal (x DECIMAL(10, -2)) ENGINE = Memory; -- { serverError 69 }
+CREATE TABLE IF NOT EXISTS decimal (x DECIMAL(10, -2)) ENGINE = Memory; -- { serverError 321 }
 CREATE TABLE IF NOT EXISTS decimal (x DECIMAL(10, 15)) ENGINE = Memory; -- { serverError 69 }
 CREATE TABLE IF NOT EXISTS decimal (x DECIMAL(0, 0)) ENGINE = Memory; -- { serverError 69 }
 
