@@ -490,7 +490,7 @@ public:
             case Types::Float64:
             {
                 // Compare as UInt64 so that NaNs compare as equal.
-                return reinterpret<UInt64>()  == rhs.reinterpret<UInt64>();
+                return reinterpret<UInt64>() == rhs.reinterpret<UInt64>();
             }
             case Types::String:  return get<String>()  == rhs.get<String>();
             case Types::Array:   return get<Array>()   == rhs.get<Array>();
@@ -530,13 +530,20 @@ public:
             case Types::Decimal64:  return f(field.template get<DecimalField<Decimal64>>());
             case Types::Decimal128: return f(field.template get<DecimalField<Decimal128>>());
             case Types::AggregateFunctionState: return f(field.template get<AggregateFunctionStateData>());
-            default:
-            {
-                assert(false);
-                Null null;
-                return f(null);
-            }
+            case Types::Int128:
+                // TODO: investigate where we need Int128 Fields. There are no
+                // field visitors that support them, and they only arise indirectly
+                // in some functions that use Decimal columns: they get the
+                // underlying Field value with get<Int128>(). Probably should be
+                // switched to DecimalField, but this is a whole endeavor in itself.
+                throw Exception("Unexpected Int128 in Field::dispatch()", ErrorCodes::LOGICAL_ERROR);
         }
+
+        // GCC 9 complains that control reaches the end, despite that we handle
+        // all the cases above (maybe because of throw?). Return something to
+        // silence it.
+        Null null{};
+        return f(null);
     }
 
 

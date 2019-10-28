@@ -14,9 +14,9 @@ namespace DB
 
 struct QueryThreadLogElement
 {
-    time_t event_time{};
+    UInt32 event_time{};
     /// When query was attached to current thread
-    time_t query_start_time{};
+    UInt32 query_start_time{};
     /// Real time spent by the thread to execute the query
     UInt64 query_duration_ms{};
 

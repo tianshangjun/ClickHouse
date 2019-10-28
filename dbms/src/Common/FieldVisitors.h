@@ -43,11 +43,15 @@ auto applyVisitor(Visitor && visitor, F && field)
 template <typename Visitor, typename F1, typename F2>
 auto applyVisitor(Visitor && visitor, F1 && field1, F2 && field2)
 {
-    return Field::dispatch([&](auto & field1_value) {
-        return Field::dispatch([&](auto & field2_value) {
-            return visitor(field1_value, field2_value);
-        }, field2);
-    }, field1 );
+    return Field::dispatch([&](auto & field1_value)
+        {
+            return Field::dispatch([&](auto & field2_value)
+                {
+                    return visitor(field1_value, field2_value);
+                },
+                field2);
+        },
+        field1);
 }
 
 
